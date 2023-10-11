@@ -9,16 +9,49 @@ var getClassFile = { |class|
 	string
 };
 
-var getClassDefinition = { |class|
+var getClassDefinition = { |class, verbose=false|
 	var file = getClassFile.value(class);
 	var matchString = class.asString;
 	var position;
 	var classDef = "";
 	var openedBrackets = 0;
-	if((class === Object).not) {
-		matchString = matchString ++ " : ";
-		matchString = matchString ++ class.superclass.asString;
+
+	matchString = matchString ++ " : ";
+	matchString = matchString ++ class.superclass.asString;
+
+	position = file.find(matchString);
+	// Try orphan Class
+	if(position.isNil) {
+		matchString = class.asString ++ " {";
+		position = file.find(matchString); };
+	// Try adding [slot]
+	if(position.isNil) {
+		[
+			"[slot]",
+			"[int8]", "[int16]", "[int32]",
+			"[float]", "[double]", "[symbol]"
+		].do({ |symbol|
+			if(position.isNil) {
+				matchString = class.asString;
+				matchString = matchString ++ symbol;
+				matchString = matchString = " : ";
+				matchString = matchString ++ class.superclass.asString;
+				position = file.find(matchString); };
+		});
+	};
+	// fix : LIDGui
+	if(position.isNil) {
+		matchString = class.asString ++ "{";
 		position = file.find(matchString);
+	};
+
+	// fix : MultiTap / PMOsc / PatternConductor / SoundIn
+	if(position.isNil) {
+		matchString = class.asString ++ "  {";
+		position = file.find(matchString);
+	};
+
+	if(position.notNil) {
 		while { openedBrackets == 0 } {
 			var char = file[position];
 			classDef = classDef ++ char;
@@ -34,12 +67,19 @@ var getClassDefinition = { |class|
 			position = position + 1;
 		};
 	} {
-		"This function does not work on Object".postln;
+		if(verbose)
+		{ ("Unable to scan class " ++ class.name.asString).postln; }
 	};
+	// Return
 	classDef
 };
 
-var classDef = getClassDefinition.value(View);
-classDef.postln;
-""
+Class.allClasses.do({ |class|
+	if(class.name.asString.beginsWith("Meta_").not) {
+		var classDef = getClassDefinition.value(class, true);
+		//classDef.postln;
+		//class.name.postln;
+		//"".postln;
+	};
+});
 )
